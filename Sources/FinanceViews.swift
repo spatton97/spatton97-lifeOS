@@ -322,13 +322,26 @@ struct AccountEditorSheet: View {
     private func save() {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let balance = Decimal(string: balanceText.replacingOccurrences(of: ",", with: "")) ?? 0
+        let saved: Account
         if let account {
             account.name = trimmed
             account.type = type
             account.currentBalance = balance
+            saved = account
         } else {
-            modelContext.insert(Account(name: trimmed, type: type, currentBalance: balance))
+            let created = Account(name: trimmed, type: type, currentBalance: balance)
+            modelContext.insert(created)
+            saved = created
         }
+        // Keep Today in sync: account save counts as today's balance check-in.
+        modelContext.insert(
+            BalanceSnapshot(
+                amount: balance,
+                date: Calendar.current.startOfDay(for: .now),
+                note: "Account update",
+                account: saved
+            )
+        )
         try? modelContext.save()
         dismiss()
     }

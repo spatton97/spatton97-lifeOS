@@ -20,6 +20,10 @@ struct TodayView: View {
         snapshots.contains { calendar.isDate($0.date, inSameDayAs: todayStart) }
     }
 
+    private var netWorth: Decimal {
+        accounts.reduce(0) { $0 + $1.currentBalance }
+    }
+
     private var todaysSchedule: [ScheduleItem] {
         scheduleItems.filter { calendar.isDate($0.start, inSameDayAs: todayStart) }
             .sorted { $0.start < $1.start }
@@ -43,20 +47,43 @@ struct TodayView: View {
     var body: some View {
         NavigationStack {
             List {
-                if !hasTodaySnapshot {
-                    Section {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Label("No balance recorded today", systemImage: "exclamationmark.triangle.fill")
-                                .font(.headline)
-                                .foregroundStyle(LifeOSAccent.warning(colorBlind: colorBlind))
-                            Text("Record today’s balances in Finance so Today stays accurate.")
-                                .font(.subheadline)
+                Section {
+                    if accounts.isEmpty {
+                        Text("No accounts yet — add one in Finance.")
+                            .foregroundStyle(.secondary)
+                    } else {
+                        HStack {
+                            Text("Net position")
                                 .foregroundStyle(.secondary)
-                            Text("Open the Finance tab → Overview → Record balance")
-                                .font(.caption)
-                                .foregroundStyle(.tertiary)
+                            Spacer()
+                            Text(netWorth, format: .currency(code: currencyCode))
+                                .font(.title3.weight(.semibold))
+                                .foregroundStyle(
+                                    netWorth >= 0
+                                    ? LifeOSAccent.success(colorBlind: colorBlind)
+                                    : LifeOSAccent.warning(colorBlind: colorBlind)
+                                )
+                                .monospacedDigit()
                         }
-                        .padding(.vertical, 4)
+                        ForEach(accounts) { account in
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(account.name)
+                                    Text(account.type.displayName)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                Text(account.currentBalance, format: .currency(code: currencyCode))
+                                    .monospacedDigit()
+                            }
+                        }
+                    }
+                } header: {
+                    Text("Balances")
+                } footer: {
+                    if !accounts.isEmpty && !hasTodaySnapshot {
+                        Text("Tip: Finance → Snapshot locks today’s numbers for the daily check-in.")
                     }
                 }
 
@@ -288,6 +315,10 @@ struct ScheduleEditorSheet: View {
         try? modelContext.save()
         dismiss()
     }
+}
+
+private var currencyCode: String {
+    Locale.current.currency?.identifier ?? "USD"
 }
 
 #Preview {
