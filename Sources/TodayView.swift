@@ -24,6 +24,10 @@ struct TodayView: View {
         accounts.reduce(0) { $0 + $1.currentBalance }
     }
 
+    private var currencyCode: String {
+        Locale.current.currency?.identifier ?? "USD"
+    }
+
     private var todaysSchedule: [ScheduleItem] {
         scheduleItems.filter { calendar.isDate($0.start, inSameDayAs: todayStart) }
             .sorted { $0.start < $1.start }
@@ -82,9 +86,7 @@ struct TodayView: View {
                 } header: {
                     Text("Balances")
                 } footer: {
-                    if !accounts.isEmpty && !hasTodaySnapshot {
-                        Text("Tip: Finance → Snapshot locks today’s numbers for the daily check-in.")
-                    }
+                    balancesFooter
                 }
 
                 Section {
@@ -203,6 +205,13 @@ struct TodayView: View {
         }
     }
 
+    @ViewBuilder
+    private var balancesFooter: some View {
+        if !accounts.isEmpty && !hasTodaySnapshot {
+            Text("Tip: Finance > Snapshot locks today's numbers for the daily check-in.")
+        }
+    }
+
     private func dueLabel(for bill: Bill) -> String {
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .full
@@ -315,10 +324,6 @@ struct ScheduleEditorSheet: View {
         try? modelContext.save()
         dismiss()
     }
-}
-
-private var currencyCode: String {
-    Locale.current.currency?.identifier ?? "USD"
 }
 
 #Preview {
