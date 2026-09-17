@@ -42,6 +42,19 @@ struct TodayView: View {
         bills.filter { !$0.isPaid }
     }
 
+    /// Unpaid bills sorted by due urgency: overdue → due today → soon (7d) → later.
+    private var unpaidBillsByUrgency: [Bill] {
+        unpaidBills.sorted { lhs, rhs in
+            let l = dueUrgency(for: lhs)
+            let r = dueUrgency(for: rhs)
+            if l != r { return l.rawValue < r.rawValue }
+            let ld = calendar.startOfDay(for: lhs.dueDate)
+            let rd = calendar.startOfDay(for: rhs.dueDate)
+            if ld != rd { return ld < rd }
+            return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+        }
+    }
+
     private var recentlyPaidToday: [Bill] {
         bills.filter { bill in
             guard bill.isPaid, let paidAt = bill.paidAt else { return false }
@@ -158,23 +171,14 @@ struct TodayView: View {
                         .buttonStyle(.plain)
                     }
 
-                    ForEach(unpaidBills) { bill in
-                        HStack {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(bill.name)
-                                Text(dueLabel(for: bill))
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            Spacer()
-                            Text(bill.amount, format: .currency(code: Locale.current.currency?.identifier ?? "USD"))
-                                .fontWeight(.medium)
-                            Button("Pay") {
-                                BillPaymentService.markPaid(bill, in: modelContext)
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .tint(LifeOSAccent.success(colorBlind: colorBlind))
-                            .controlSize(.small)
+                    ForEach(unpaidBillsByUrgency) { bill in
+                        UnpaidBillRow(
+                            bill: bill,
+                            urgency: billDueUrgency(bill.dueDate, calendar: calendar, todayStart: todayStart),
+                            currencyCode: currencyCode,
+                            colorBlind: colorBlind
+                        ) {
+                            BillPaymentService.markPaid(bill, in: modelContext)
                         }
                     }
 
@@ -232,19 +236,97 @@ struct TodayView: View {
         }
     }
 
-    private func dueLabel(for bill: Bill) -> String {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .full
-        let due = calendar.startOfDay(for: bill.dueDate)
-        if due == todayStart { return "Due today" }
-        return "Due \(formatter.localizedString(for: bill.dueDate, relativeTo: .now))"
+    private func dueUrgency(for bill: Bill) -> BillDueUrgency {
+        billDueUrgency(bill.dueDate, calendar: calendar, todayStart: todayStart)
     }
 
     private func deleteSchedule(at offsets: IndexSet) {
+
         for index in offsets {
             modelContext.delete(todaysSchedule[index])
         }
         try? modelContext.save()
+    }
+}
+
+private enum BillDueUrgency: Int, Comparable {
+    case overdue = 0
+    case dueToday = 1
+    case soon = 2
+    case later = 3
+
+    var isElevated: Bool { self == .overdue || self == .dueToday }
+
+    static func < (lhs: BillDueUrgency, rhs: BillDueUrgency) -> Bool {
+        lhs.rawValue < rhs.rawValue
+    }
+}
+
+private func billDueUrgency(_ date: Date, calendar: Calendar, todayStart: Date) -> BillDueUrgency {
+    let due = calendar.startOfDay(for: date)
+    if due < todayStart { return .overdue }
+    if due == todayStart { return .dueToday }
+    let days = calendar.dateComponents([.day], from: todayStart, to: due).day ?? 0
+    if days <= 7 { return .soon }
+    return .later
+}
+
+private func billDueCaption(_ date: Date, urgency: BillDueUrgency, calendar: Calendar, todayStart: Date) -> String {
+    let due = calendar.startOfDay(for: date)
+    switch urgency {
+    case .overdue:
+        let days = calendar.dateComponents([.day], from: due, to: todayStart).day ?? 0
+        if days <= 1 { return "Overdue · 1 day" }
+        return "Overdue · \(days) days"
+    case .dueToday:
+        return "Due today"
+    case .soon:
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .full
+        return "Due \(formatter.localizedString(for: date, relativeTo: .now))"
+    case .later:
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .none
+        return "Due \(formatter.string(from: date))"
+    }
+}
+
+private struct UnpaidBillRow: View {
+    let bill: Bill
+    let urgency: BillDueUrgency
+    let currencyCode: String
+    let colorBlind: Bool
+    let onPay: () -> Void
+
+    private var calendar: Calendar { .current }
+    private var todayStart: Date { calendar.startOfDay(for: .now) }
+
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(bill.name)
+                Text(billDueCaption(bill.dueDate, urgency: urgency, calendar: calendar, todayStart: todayStart))
+                    .font(.caption.weight(urgency.isElevated ? .semibold : .regular))
+                    .foregroundStyle(captionColor)
+            }
+            Spacer()
+            Text(bill.amount, format: .currency(code: currencyCode))
+                .fontWeight(.medium)
+            Button("Pay", action: onPay)
+                .buttonStyle(.borderedProminent)
+                .tint(LifeOSAccent.success(colorBlind: colorBlind))
+                .controlSize(.small)
+        }
+    }
+
+    private var captionColor: Color {
+        switch urgency {
+        case .overdue, .dueToday:
+            return LifeOSAccent.warning(colorBlind: colorBlind)
+        case .soon, .later:
+            return .secondary
+        }
     }
 }
 
