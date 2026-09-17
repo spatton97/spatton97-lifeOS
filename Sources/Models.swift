@@ -227,16 +227,19 @@ final class AppSettings {
     /// "system" | "light" | "dark"
     var themeRaw: String
     var colorBlindMode: Bool
+    /// When true, require Face ID / device passcode before showing the app.
+    var requireUnlock: Bool = false
 
     var themeMode: ThemeMode {
         get { ThemeMode(rawValue: themeRaw) ?? .system }
         set { themeRaw = newValue.rawValue }
     }
 
-    init(theme: ThemeMode = .system, colorBlindMode: Bool = false) {
+    init(theme: ThemeMode = .system, colorBlindMode: Bool = false, requireUnlock: Bool = false) {
         self.id = UUID()
         self.themeRaw = theme.rawValue
         self.colorBlindMode = colorBlindMode
+        self.requireUnlock = requireUnlock
     }
 }
 

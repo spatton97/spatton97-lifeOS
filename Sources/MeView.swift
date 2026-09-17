@@ -62,6 +62,14 @@ struct MeView: View {
                     Text("Uses system light/dark unless overridden. Color-blind mode swaps accent hues for stronger contrast.")
                 }
 
+                Section {
+                    Toggle("Require Face ID / Passcode", isOn: requireUnlockBinding)
+                } header: {
+                    Text("Privacy")
+                } footer: {
+                    Text("When on, LifeOS asks for Face ID or your device passcode on launch and after the app goes to the background. Off by default.")
+                }
+
                 Section("Data") {
                     Button {
                         sampleConfirm = true
@@ -120,6 +128,17 @@ struct MeView: View {
             set: { newValue in
                 theme.colorBlindMode = newValue
                 persistTheme()
+            }
+        )
+    }
+
+    private var requireUnlockBinding: Binding<Bool> {
+        Binding(
+            get: { settings?.requireUnlock ?? false },
+            set: { newValue in
+                ensureSettings()
+                settings?.requireUnlock = newValue
+                try? modelContext.save()
             }
         )
     }
