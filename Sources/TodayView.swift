@@ -161,11 +161,7 @@ struct TodayView: View {
                                     .foregroundStyle(.primary)
                                     .strikethrough(habit.isCompleted(on: todayStart))
                                 Spacer()
-                                Text("Habit")
-                                    .font(.caption2)
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 2)
-                                    .background(.quaternary, in: Capsule())
+                                HabitStreakCapsule(streak: habit.currentStreak(asOf: todayStart))
                             }
                         }
                         .buttonStyle(.plain)
@@ -246,6 +242,29 @@ struct TodayView: View {
             modelContext.delete(todaysSchedule[index])
         }
         try? modelContext.save()
+    }
+}
+
+private struct HabitStreakCapsule: View {
+    let streak: Int
+
+    var body: some View {
+        Group {
+            if streak > 0 {
+                Text(streak == 1 ? "1 day" : "\(streak) days")
+                    .font(.caption2.weight(.semibold))
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(.quaternary, in: Capsule())
+                    .accessibilityLabel(streak == 1 ? "1 day streak" : "\(streak) day streak")
+            } else {
+                Text("Habit")
+                    .font(.caption2)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(.quaternary, in: Capsule())
+            }
+        }
     }
 }
 

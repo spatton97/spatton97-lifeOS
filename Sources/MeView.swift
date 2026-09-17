@@ -35,6 +35,16 @@ struct MeView: View {
                                     Text("Paused")
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
+                                } else if habit.currentStreak() > 0 {
+                                    Text("\(habit.currentStreak()) day")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                        .monospacedDigit()
+                                } else if habit.bestStreak() > 0 {
+                                    Text("Best \(habit.bestStreak())")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                        .monospacedDigit()
                                 }
                             }
                         }

@@ -72,6 +72,43 @@ final class Habit {
             completedDayTimestamps.append(start)
         }
     }
+
+    /// Consecutive completed days ending today, or yesterday if today is not completed yet.
+    func currentStreak(calendar: Calendar = .current, asOf day: Date = .now) -> Int {
+        let today = calendar.startOfDay(for: day)
+        var cursor = today
+        if !isCompleted(on: today, calendar: calendar) {
+            guard let yesterday = calendar.date(byAdding: .day, value: -1, to: today) else { return 0 }
+            cursor = yesterday
+            if !isCompleted(on: cursor, calendar: calendar) { return 0 }
+        }
+        var count = 0
+        while isCompleted(on: cursor, calendar: calendar) {
+            count += 1
+            guard let prev = calendar.date(byAdding: .day, value: -1, to: cursor) else { break }
+            cursor = prev
+        }
+        return count
+    }
+
+    /// Longest run of consecutive completed days in history.
+    func bestStreak(calendar: Calendar = .current) -> Int {
+        let days = Set(completedDayTimestamps.map { calendar.startOfDay(for: $0) }).sorted()
+        guard !days.isEmpty else { return 0 }
+        var best = 1
+        var run = 1
+        for i in 1..<days.count {
+            let prev = days[i - 1]
+            let cur = days[i]
+            if let expected = calendar.date(byAdding: .day, value: 1, to: prev), calendar.isDate(expected, inSameDayAs: cur) {
+                run += 1
+                best = max(best, run)
+            } else {
+                run = 1
+            }
+        }
+        return best
+    }
 }
 
 // MARK: - Account
