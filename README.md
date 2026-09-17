@@ -16,7 +16,7 @@ LifeOS is a personal operating system for daily life: today’s schedule and che
 | **Notes** | List / add / edit / delete notes |
 | **Today** | Center tab (emphasized) — schedule, habits, unpaid bills with pay/undo |
 | **Finance** | Overview, bills, activity; accounts & balance snapshots |
-| **Me** | Habits CRUD, theme, color-blind mode, sample data |
+| **Me** | Habits CRUD, theme, color-blind mode, privacy lock, sample data |
 
 ## v1 scope
 
@@ -28,7 +28,7 @@ LifeOS is a personal operating system for daily life: today’s schedule and che
 - Bill check on Today: mark paid → debit linked account (if any) → create transaction; support undo
 - Theme preference: system / light / dark; simple `colorBlindMode` bool
 - Schedule items on Today
-- Face ID unlock string ready (`Unlock LifeOS`) — wiring optional
+- Face ID / device passcode lock is **live** — off by default; enable in **Me → Privacy** (`Require Face ID / Passcode`)
 
 ### Explicitly out of scope (v1)
 - Plaid / bank login — balances are manual
@@ -41,6 +41,7 @@ LifeOS is a personal operating system for daily life: today’s schedule and che
 - iOS 17+
 - SwiftUI + SwiftData (`@Model`, `@Query`, `@Environment(\.modelContext)`)
 - XcodeGen `project.yml` provided, or drop `Sources/` into a new empty iOS App target
+- `NSFaceIDUsageDescription` is required for the privacy lock and is already set in `project.yml` (`Unlock LifeOS`)
 
 ## Quick start
 

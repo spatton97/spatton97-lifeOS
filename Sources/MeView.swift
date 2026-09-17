@@ -36,12 +36,12 @@ struct MeView: View {
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                 } else if habit.currentStreak() > 0 {
-                                    Text("\(habit.currentStreak()) day")
+                                    Text(habit.currentStreak() == 1 ? "1 day" : "\(habit.currentStreak()) days")
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                         .monospacedDigit()
                                 } else if habit.bestStreak() > 0 {
-                                    Text("Best \(habit.bestStreak())")
+                                    Text(habit.bestStreak() == 1 ? "Best 1 day" : "Best \(habit.bestStreak()) days")
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                         .monospacedDigit()
@@ -118,7 +118,7 @@ struct MeView: View {
                 }
                 Button("Cancel", role: .cancel) {}
             }
-            .onAppear { ensureSettings() }
+            .onAppear { syncThemeFromSettings() }
         }
     }
 
@@ -146,26 +146,19 @@ struct MeView: View {
         Binding(
             get: { settings?.requireUnlock ?? false },
             set: { newValue in
-                ensureSettings()
+                // RootView owns AppSettings creation; Me only updates existing settings.
                 settings?.requireUnlock = newValue
                 try? modelContext.save()
             }
         )
     }
 
-    private func ensureSettings() {
-        if settingsList.isEmpty {
-            let s = AppSettings()
-            modelContext.insert(s)
-            try? modelContext.save()
-            theme.sync(from: s)
-        } else {
-            theme.sync(from: settings)
-        }
+    /// Sync theme from existing AppSettings only — do not insert duplicates.
+    private func syncThemeFromSettings() {
+        theme.sync(from: settings)
     }
 
     private func persistTheme() {
-        ensureSettings()
         if let settings {
             theme.apply(to: settings)
             try? modelContext.save()
