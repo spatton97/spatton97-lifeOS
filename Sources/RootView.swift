@@ -29,7 +29,7 @@ struct RootView: View {
                         Label("Today", systemImage: "sun.max.fill")
                     }
 
-                FinanceViews()
+                FinanceView()
                     .tabItem {
                         Label("Finance", systemImage: "dollarsign.circle")
                     }

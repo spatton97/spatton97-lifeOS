@@ -26,7 +26,9 @@
 
 ## Face ID / Local Authentication privacy string
 
-If you add Face ID / Touch ID unlock later, add this key to the target’s Info (or merge the snippet below into `Info.plist`):
+Face ID / passcode lock is **live** in the app (off by default; toggle under **Me → Privacy**). The usage description is **required** and is already configured in `project.yml` via `INFOPLIST_KEY_NSFaceIDUsageDescription`.
+
+If you create a project manually (Option B) without XcodeGen, add this key to the target’s Info (or merge the snippet below into `Info.plist`):
 
 | Key | Value |
 |-----|--------|
@@ -41,9 +43,9 @@ If you add Face ID / Touch ID unlock later, add this key to the target’s Info 
 
 A copy of this note also lives in `INFO.plist.snippet` in this folder.
 
-## Capabilities (optional)
+## Capabilities
 
-- **Face ID**: add Local Authentication usage when you implement unlock; privacy string above is required.
+- **Face ID / Local Authentication**: privacy string above is required (already in `project.yml` for XcodeGen). Unlock is off by default until enabled in Me → Privacy.
 - No Sign in with Apple, no IAP, no associated domains needed for v1.
 
 ## Verify
@@ -51,6 +53,7 @@ A copy of this note also lives in `INFO.plist.snippet` in this folder.
 1. Launch app → **Today** tab should be center and usable empty.
 2. **Me** → optionally tap **Add sample data**, then return to Today / Finance.
 3. Create a bill with a linked account → on Today mark paid → check Finance Activity and account balance; use undo on Today.
+4. **Me → Privacy** → enable **Require Face ID / Passcode**, background the app, and confirm the lock screen appears.
 
 ## Assumptions
 
