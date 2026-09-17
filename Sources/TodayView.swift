@@ -12,6 +12,7 @@ struct TodayView: View {
     @Query(sort: \Account.name) private var accounts: [Account]
 
     @State private var showingAddSchedule = false
+    @State private var showingBalanceCheckIn = false
 
     private var calendar: Calendar { .current }
     private var todayStart: Date { calendar.startOfDay(for: .now) }
@@ -84,7 +85,19 @@ struct TodayView: View {
                         }
                     }
                 } header: {
-                    Text("Balances")
+                    HStack {
+                        Text("Balances")
+                        Spacer()
+                        if !accounts.isEmpty {
+                            Button("Update") {
+                                showingBalanceCheckIn = true
+                            }
+                            .font(.subheadline.weight(.semibold))
+                            .buttonStyle(.plain)
+                            .foregroundStyle(LifeOSAccent.success(colorBlind: colorBlind))
+                            .accessibilityLabel("Update balances")
+                        }
+                    }
                 } footer: {
                     balancesFooter
                 }
@@ -202,13 +215,20 @@ struct TodayView: View {
             .sheet(isPresented: $showingAddSchedule) {
                 ScheduleEditorSheet(item: nil)
             }
+            .sheet(isPresented: $showingBalanceCheckIn) {
+                DailyBalanceCheckInSheet(accounts: accounts)
+            }
         }
     }
 
     @ViewBuilder
     private var balancesFooter: some View {
-        if !accounts.isEmpty && !hasTodaySnapshot {
-            Text("Tip: Finance > Snapshot locks today's numbers for the daily check-in.")
+        if accounts.isEmpty {
+            Text("Add an account in Finance, then Update here each day.")
+        } else if !hasTodaySnapshot {
+            Text("Tap Update to lock today's balances.")
+        } else {
+            Text("Balances checked in for today.")
         }
     }
 
@@ -318,6 +338,90 @@ struct ScheduleEditorSheet: View {
                     end: hasEnd ? end : nil,
                     notes: notes,
                     isAllDay: isAllDay
+                )
+            )
+        }
+        try? modelContext.save()
+        dismiss()
+    }
+}
+
+
+struct DailyBalanceCheckInSheet: View {
+    @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) private var dismiss
+
+    let accounts: [Account]
+
+    @State private var drafts: [UUID: String] = [:]
+
+    private var todayStart: Date {
+        Calendar.current.startOfDay(for: .now)
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    ForEach(accounts) { account in
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(account.name)
+                                Text(account.type.displayName)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            TextField(
+                                "0",
+                                text: Binding(
+                                    get: { drafts[account.id] ?? "" },
+                                    set: { drafts[account.id] = $0 }
+                                )
+                            )
+                            .keyboardType(.decimalPad)
+                            .multilineTextAlignment(.trailing)
+                            .frame(maxWidth: 140)
+                        }
+                    }
+                } header: {
+                    Text("Today's balances")
+                } footer: {
+                    Text("Save updates each account and records a snapshot for today.")
+                }
+            }
+            .navigationTitle("Update Balances")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") { save() }
+                        .disabled(accounts.isEmpty)
+                }
+            }
+            .onAppear {
+                for account in accounts {
+                    drafts[account.id] = NSDecimalNumber(decimal: account.currentBalance).stringValue
+                }
+            }
+        }
+    }
+
+    private func save() {
+        for account in accounts {
+            let raw = (drafts[account.id] ?? "")
+                .replacingOccurrences(of: ",", with: "")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            let amount = Decimal(string: raw) ?? account.currentBalance
+            account.currentBalance = amount
+            modelContext.insert(
+                BalanceSnapshot(
+                    amount: amount,
+                    date: todayStart,
+                    note: "Daily check-in",
+                    account: account
                 )
             )
         }
