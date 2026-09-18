@@ -279,3 +279,21 @@ final class AppSettings {
         self.requireUnlock = requireUnlock
     }
 }
+
+// MARK: - MailMailbox (one free Gmail connection)
+
+@Model
+final class MailMailbox {
+    var id: UUID
+    var email: String
+    /// Provider identifier, e.g. "gmail".
+    var providerRaw: String
+    var connectedAt: Date
+
+    init(email: String, providerRaw: String = "gmail", connectedAt: Date = .now) {
+        self.id = UUID()
+        self.email = email
+        self.providerRaw = providerRaw
+        self.connectedAt = connectedAt
+    }
+}

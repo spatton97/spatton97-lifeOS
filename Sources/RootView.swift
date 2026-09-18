@@ -14,7 +14,7 @@ struct RootView: View {
     var body: some View {
         ZStack {
             TabView {
-                MailPlaceholderView()
+                MailView()
                     .tabItem {
                         Label("Mail", systemImage: "envelope")
                     }
@@ -85,7 +85,8 @@ struct RootView: View {
     RootView()
         .modelContainer(for: [
             Note.self, Habit.self, Account.self, BalanceSnapshot.self,
-            Bill.self, Transaction.self, ScheduleItem.self, AppSettings.self
+            Bill.self, Transaction.self, ScheduleItem.self, AppSettings.self,
+            MailMailbox.self
         ], inMemory: true)
         .environmentObject(ThemeController())
 }

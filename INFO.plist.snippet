@@ -2,3 +2,22 @@
      Already set in project.yml as INFOPLIST_KEY_NSFaceIDUsageDescription. -->
 <key>NSFaceIDUsageDescription</key>
 <string>Unlock LifeOS</string>
+
+<!-- Gmail OAuth (Mail tab). Paste your Google Cloud iOS OAuth Client ID.
+     App reads LifeOSGmailClientID first, then GIDClientID. -->
+<key>LifeOSGmailClientID</key>
+<string>YOUR_IOS_CLIENT_ID.apps.googleusercontent.com</string>
+
+<!-- URL scheme = reversed Client ID, e.g. Client ID
+     123-abc.apps.googleusercontent.com → com.googleusercontent.apps.123-abc -->
+<key>CFBundleURLTypes</key>
+<array>
+  <dict>
+    <key>CFBundleURLName</key>
+    <string>GoogleOAuth</string>
+    <key>CFBundleURLSchemes</key>
+    <array>
+      <string>com.googleusercontent.apps.YOUR_PREFIX</string>
+    </array>
+  </dict>
+</array>
