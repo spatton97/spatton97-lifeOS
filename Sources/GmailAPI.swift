@@ -10,6 +10,7 @@ enum GmailAPI {
         let date: Date?
         let snippet: String
         var bodyPlain: String?
+        var bodyHTML: String?
     }
 
     static func fetchProfileEmail(accessToken: String) async throws -> String {
@@ -117,9 +118,15 @@ enum GmailAPI {
             }
             return nil
         }()
-        var body: String?
+        var plain: String?
+        var html: String?
         if includeBody {
-            body = extractPlainText(from: msg.payload) ?? msg.snippet
+            plain = extractPlainText(from: msg.payload)
+            html = extractHTML(from: msg.payload)
+            // Never treat raw HTML as "plain" — that shows as code in Text views.
+            if plain == nil, html == nil {
+                plain = msg.snippet
+            }
         }
         return MailMessageItem(
             id: msg.id,
@@ -128,14 +135,15 @@ enum GmailAPI {
             from: from,
             date: date,
             snippet: msg.snippet ?? "",
-            bodyPlain: body
+            bodyPlain: plain,
+            bodyHTML: html
         )
     }
 
     private static func extractPlainText(from payload: APIMessage.Payload?) -> String? {
         guard let payload else { return nil }
-        if let mime = payload.mimeType, mime.hasPrefix("text/plain"),
-           let b64 = payload.body?.data, let text = decodeBase64URL(b64) {
+        if let mime = payload.mimeType, mime.lowercased().hasPrefix("text/plain"),
+           let b64 = payload.body?.data, let text = decodeBase64URL(b64), !text.isEmpty {
             return text
         }
         if let parts = payload.parts {
@@ -143,20 +151,49 @@ enum GmailAPI {
                 if let found = extractPlainText(from: part) { return found }
             }
         }
-        if let b64 = payload.body?.data, let text = decodeBase64URL(b64), !text.isEmpty {
+        return nil
+    }
+
+    private static func extractHTML(from payload: APIMessage.Payload?) -> String? {
+        guard let payload else { return nil }
+        if let mime = payload.mimeType, mime.lowercased().hasPrefix("text/html"),
+           let b64 = payload.body?.data, let text = decodeBase64URL(b64), !text.isEmpty {
+            return text
+        }
+        if let parts = payload.parts {
+            for part in parts {
+                if let found = extractHTML(from: part) { return found }
+            }
+        }
+        // Single-part HTML messages sometimes omit a precise mime on nested parts.
+        if let mime = payload.mimeType?.lowercased(), mime.contains("html"),
+           let b64 = payload.body?.data, let text = decodeBase64URL(b64), !text.isEmpty {
             return text
         }
         return nil
     }
 
     private static func extractPlainText(from part: APIMessage.Payload.Part) -> String? {
-        if let mime = part.mimeType, mime.hasPrefix("text/plain"),
-           let b64 = part.body?.data, let text = decodeBase64URL(b64) {
+        if let mime = part.mimeType, mime.lowercased().hasPrefix("text/plain"),
+           let b64 = part.body?.data, let text = decodeBase64URL(b64), !text.isEmpty {
             return text
         }
         if let nested = part.parts {
             for p in nested {
                 if let found = extractPlainText(from: p) { return found }
+            }
+        }
+        return nil
+    }
+
+    private static func extractHTML(from part: APIMessage.Payload.Part) -> String? {
+        if let mime = part.mimeType, mime.lowercased().hasPrefix("text/html"),
+           let b64 = part.body?.data, let text = decodeBase64URL(b64), !text.isEmpty {
+            return text
+        }
+        if let nested = part.parts {
+            for p in nested {
+                if let found = extractHTML(from: p) { return found }
             }
         }
         return nil
