@@ -12,7 +12,8 @@ struct LifeOSApp: App {
             Bill.self,
             Transaction.self,
             ScheduleItem.self,
-            AppSettings.self
+            AppSettings.self,
+            MailMailbox.self
         ])
         let config = ModelConfiguration(isStoredInMemoryOnly: false)
         do {

@@ -72,6 +72,43 @@ final class Habit {
             completedDayTimestamps.append(start)
         }
     }
+
+    /// Consecutive completed days ending today, or yesterday if today is not completed yet.
+    func currentStreak(calendar: Calendar = .current, asOf day: Date = .now) -> Int {
+        let today = calendar.startOfDay(for: day)
+        var cursor = today
+        if !isCompleted(on: today, calendar: calendar) {
+            guard let yesterday = calendar.date(byAdding: .day, value: -1, to: today) else { return 0 }
+            cursor = yesterday
+            if !isCompleted(on: cursor, calendar: calendar) { return 0 }
+        }
+        var count = 0
+        while isCompleted(on: cursor, calendar: calendar) {
+            count += 1
+            guard let prev = calendar.date(byAdding: .day, value: -1, to: cursor) else { break }
+            cursor = prev
+        }
+        return count
+    }
+
+    /// Longest run of consecutive completed days in history.
+    func bestStreak(calendar: Calendar = .current) -> Int {
+        let days = Set(completedDayTimestamps.map { calendar.startOfDay(for: $0) }).sorted()
+        guard !days.isEmpty else { return 0 }
+        var best = 1
+        var run = 1
+        for i in 1..<days.count {
+            let prev = days[i - 1]
+            let cur = days[i]
+            if let expected = calendar.date(byAdding: .day, value: 1, to: prev), calendar.isDate(expected, inSameDayAs: cur) {
+                run += 1
+                best = max(best, run)
+            } else {
+                run = 1
+            }
+        }
+        return best
+    }
 }
 
 // MARK: - Account
@@ -227,97 +264,36 @@ final class AppSettings {
     /// "system" | "light" | "dark"
     var themeRaw: String
     var colorBlindMode: Bool
+    /// When true, require Face ID / device passcode before showing the app.
+    var requireUnlock: Bool = false
 
     var themeMode: ThemeMode {
         get { ThemeMode(rawValue: themeRaw) ?? .system }
         set { themeRaw = newValue.rawValue }
     }
 
-    init(theme: ThemeMode = .system, colorBlindMode: Bool = false) {
+    init(theme: ThemeMode = .system, colorBlindMode: Bool = false, requireUnlock: Bool = false) {
         self.id = UUID()
         self.themeRaw = theme.rawValue
         self.colorBlindMode = colorBlindMode
+        self.requireUnlock = requireUnlock
     }
 }
 
-// MARK: - Bill pay / undo helpers
+// MARK: - MailMailbox (one free Gmail connection)
 
-enum BillPaymentService {
-    /// Mark bill paid, debit linked account if present, create transaction.
-    @MainActor
-    static func markPaid(_ bill: Bill, in context: ModelContext) {
-        guard !bill.isPaid else { return }
-        bill.isPaid = true
-        bill.paidAt = .now
+@Model
+final class MailMailbox {
+    var id: UUID
+    var email: String
+    /// Provider identifier, e.g. "gmail".
+    var providerRaw: String
+    var connectedAt: Date
 
-        let debitAmount = -bill.amount
-        let tx = Transaction(
-            title: "Bill: \(bill.name)",
-            amount: debitAmount,
-            date: .now,
-            account: bill.linkedAccount,
-            relatedBill: bill
-        )
-        context.insert(tx)
-        bill.paymentTransaction = tx
-
-        if let account = bill.linkedAccount {
-            // Credit accounts: paying a bill often increases available credit;
-            // for simplicity, all account types: subtract amount (money leaving).
-            account.currentBalance += debitAmount
-        }
-        try? context.save()
-    }
-
-    /// Undo payment: restore bill, reverse balance, mark/remove transaction.
-    @MainActor
-    static func undoPaid(_ bill: Bill, in context: ModelContext) {
-        guard bill.isPaid else { return }
-        if let tx = bill.paymentTransaction {
-            if let account = tx.account {
-                // Reverse the debit
-                account.currentBalance -= tx.amount
-            }
-            tx.isUndone = true
-            context.delete(tx)
-            bill.paymentTransaction = nil
-        }
-        bill.isPaid = false
-        bill.paidAt = nil
-        try? context.save()
-    }
-}
-
-enum SampleDataSeeder {
-    @MainActor
-    static func seed(in context: ModelContext) {
-        let checking = Account(name: "Everyday Checking", type: .checking, currentBalance: 2_450.00)
-        let savings = Account(name: "Emergency Savings", type: .savings, currentBalance: 8_000.00)
-        let credit = Account(name: "Rewards Card", type: .credit, currentBalance: -320.50)
-        context.insert(checking)
-        context.insert(savings)
-        context.insert(credit)
-
-        let today = Calendar.current.startOfDay(for: .now)
-        context.insert(BalanceSnapshot(amount: checking.currentBalance, date: today, note: "Opening", account: checking))
-
-        let rentDue = Calendar.current.date(byAdding: .day, value: 3, to: today) ?? today
-        let electricDue = Calendar.current.date(byAdding: .day, value: 1, to: today) ?? today
-        context.insert(Bill(name: "Rent", amount: 1_450, dueDate: rentDue, linkedAccount: checking))
-        context.insert(Bill(name: "Electric", amount: 85.40, dueDate: electricDue, linkedAccount: checking))
-
-        context.insert(Habit(name: "Morning stretch", sortOrder: 0))
-        context.insert(Habit(name: "Read 20 min", sortOrder: 1))
-        context.insert(Habit(name: "No late caffeine", sortOrder: 2))
-
-        let meetingStart = Calendar.current.date(bySettingHour: 10, minute: 0, second: 0, of: .now) ?? .now
-        let meetingEnd = Calendar.current.date(byAdding: .hour, value: 1, to: meetingStart)
-        context.insert(ScheduleItem(title: "Team standup", start: meetingStart, end: meetingEnd))
-        context.insert(ScheduleItem(title: "Focus block", start: Calendar.current.date(bySettingHour: 14, minute: 0, second: 0, of: .now) ?? .now, end: nil))
-
-        context.insert(Note(title: "Welcome to LifeOS", body: "Local-first life OS. Add notes, track bills, and own your day.\n\nWorking name: 2do4you"))
-        context.insert(Transaction(title: "Coffee", amount: -4.75, account: checking))
-
-        try? context.save()
+    init(email: String, providerRaw: String = "gmail", connectedAt: Date = .now) {
+        self.id = UUID()
+        self.email = email
+        self.providerRaw = providerRaw
+        self.connectedAt = connectedAt
     }
 }

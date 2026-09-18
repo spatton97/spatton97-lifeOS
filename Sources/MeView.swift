@@ -35,6 +35,16 @@ struct MeView: View {
                                     Text("Paused")
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
+                                } else if habit.currentStreak() > 0 {
+                                    Text(habit.currentStreak() == 1 ? "1 day" : "\(habit.currentStreak()) days")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                        .monospacedDigit()
+                                } else if habit.bestStreak() > 0 {
+                                    Text(habit.bestStreak() == 1 ? "Best 1 day" : "Best \(habit.bestStreak()) days")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                        .monospacedDigit()
                                 }
                             }
                         }
@@ -60,6 +70,14 @@ struct MeView: View {
                     Text("Theme")
                 } footer: {
                     Text("Uses system light/dark unless overridden. Color-blind mode swaps accent hues for stronger contrast.")
+                }
+
+                Section {
+                    Toggle("Require Face ID / Passcode", isOn: requireUnlockBinding)
+                } header: {
+                    Text("Privacy")
+                } footer: {
+                    Text("When on, LifeOS asks for Face ID or your device passcode on launch and after the app goes to the background. Off by default.")
                 }
 
                 Section("Data") {
@@ -100,7 +118,7 @@ struct MeView: View {
                 }
                 Button("Cancel", role: .cancel) {}
             }
-            .onAppear { ensureSettings() }
+            .onAppear { syncThemeFromSettings() }
         }
     }
 
@@ -124,19 +142,23 @@ struct MeView: View {
         )
     }
 
-    private func ensureSettings() {
-        if settingsList.isEmpty {
-            let s = AppSettings()
-            modelContext.insert(s)
-            try? modelContext.save()
-            theme.sync(from: s)
-        } else {
-            theme.sync(from: settings)
-        }
+    private var requireUnlockBinding: Binding<Bool> {
+        Binding(
+            get: { settings?.requireUnlock ?? false },
+            set: { newValue in
+                // RootView owns AppSettings creation; Me only updates existing settings.
+                settings?.requireUnlock = newValue
+                try? modelContext.save()
+            }
+        )
+    }
+
+    /// Sync theme from existing AppSettings only — do not insert duplicates.
+    private func syncThemeFromSettings() {
+        theme.sync(from: settings)
     }
 
     private func persistTheme() {
-        ensureSettings()
         if let settings {
             theme.apply(to: settings)
             try? modelContext.save()

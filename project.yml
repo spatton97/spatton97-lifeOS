@@ -1,3 +1,6 @@
+# Gmail OAuth (optional): after creating an iOS OAuth client in Google Cloud, add:
+#   INFOPLIST_KEY_LifeOSGmailClientID: "YOUR_ID.apps.googleusercontent.com"
+# and register the reversed client ID as a CFBundleURLTypes URL scheme (see SETUP.md).
 name: LifeOS
 options:
   bundleIdPrefix: com.lifeos
