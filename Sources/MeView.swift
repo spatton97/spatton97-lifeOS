@@ -24,6 +24,8 @@ struct MeView: View {
                             .foregroundStyle(.secondary)
                     }
                     ForEach(habits) { habit in
+                        let current = habit.currentStreak()
+                        let best = habit.bestStreak()
                         Button {
                             editingHabit = habit
                         } label: {
@@ -35,13 +37,13 @@ struct MeView: View {
                                     Text("Paused")
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
-                                } else if habit.currentStreak() > 0 {
-                                    Text(habit.currentStreak() == 1 ? "1 day" : "\(habit.currentStreak()) days")
+                                } else if current > 0 {
+                                    Text(current == 1 ? "1 day" : "\(current) days")
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                         .monospacedDigit()
-                                } else if habit.bestStreak() > 0 {
-                                    Text(habit.bestStreak() == 1 ? "Best 1 day" : "Best \(habit.bestStreak()) days")
+                                } else if best > 0 {
+                                    Text(best == 1 ? "Best 1 day" : "Best \(best) days")
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                         .monospacedDigit()
@@ -95,7 +97,7 @@ struct MeView: View {
                 } header: {
                     Text("About")
                 } footer: {
-                    Text("Local-first. No Plaid, no IAP, no mail OAuth in v1.")
+                    Text("Local-first. One free read-only Gmail. No Plaid, no IAP.")
                 }
             }
             .navigationTitle("Me")

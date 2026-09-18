@@ -6,7 +6,6 @@ import AuthenticationServices
 @MainActor
 final class GmailAuthController: NSObject, ObservableObject {
     @Published var isAuthenticating = false
-    @Published var lastError: String?
 
     private var session: ASWebAuthenticationSession?
     private let presenter = AuthPresentationContext()
@@ -28,7 +27,6 @@ final class GmailAuthController: NSObject, ObservableObject {
         }
 
         isAuthenticating = true
-        lastError = nil
         defer { isAuthenticating = false }
 
         let code = try await requestAuthorizationCode(
@@ -105,6 +103,14 @@ final class GmailAuthController: NSObject, ObservableObject {
 
     // MARK: - Token exchange
 
+
+    private static func formURLEncoded(_ fields: [String: String]) -> Data? {
+        fields
+            .map { "\($0.key)=\($0.value.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? $0.value)" }
+            .joined(separator: "&")
+            .data(using: .utf8)
+    }
+
     private struct TokenResponse: Decodable {
         let access_token: String
         let expires_in: TimeInterval?
@@ -131,10 +137,7 @@ final class GmailAuthController: NSObject, ObservableObject {
             "redirect_uri": redirectURI,
             "grant_type": "authorization_code"
         ]
-        request.httpBody = body
-            .map { "\($0.key)=\($0.value.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? $0.value)" }
-            .joined(separator: "&")
-            .data(using: .utf8)
+        request.httpBody = Self.formURLEncoded(body)
 
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
@@ -162,10 +165,7 @@ final class GmailAuthController: NSObject, ObservableObject {
             "refresh_token": refreshToken,
             "grant_type": "refresh_token"
         ]
-        request.httpBody = body
-            .map { "\($0.key)=\($0.value.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? $0.value)" }
-            .joined(separator: "&")
-            .data(using: .utf8)
+        request.httpBody = Self.formURLEncoded(body)
 
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {

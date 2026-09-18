@@ -226,34 +226,3 @@ enum GmailAPI {
         }
     }
 }
-
-/// Resolves a valid access token for a mailbox (refreshes when expired).
-enum GmailTokenStore {
-    static func validAccessToken(for mailboxID: UUID) async throws -> String {
-        guard var bundle = try MailKeychain.load(mailboxID: mailboxID) else {
-            throw TokenError.missing
-        }
-        let needsRefresh: Bool = {
-            guard let expires = bundle.expiresAt else { return false }
-            return expires.timeIntervalSinceNow < 60
-        }()
-        if needsRefresh {
-            guard let refresh = bundle.refreshToken else { throw TokenError.missingRefresh }
-            let refreshed = try await GmailAuthController.refreshAccessToken(refreshToken: refresh)
-            try MailKeychain.save(tokens: refreshed, mailboxID: mailboxID)
-            bundle = refreshed
-        }
-        return bundle.accessToken
-    }
-
-    enum TokenError: LocalizedError {
-        case missing
-        case missingRefresh
-        var errorDescription: String? {
-            switch self {
-            case .missing: return "No stored Gmail credentials. Sign in again."
-            case .missingRefresh: return "Session expired. Sign in again."
-            }
-        }
-    }
-}
